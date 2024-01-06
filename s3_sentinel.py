@@ -17,6 +17,7 @@ import boto3
 from botocore.exceptions import ClientError
 
 # Maximum number of objects to scan per bucket.
+#   -1 = No limit, but may take longer.
 MAX_OBJECTS = 400
 
 def create_s3_client(aws_access_key, aws_secret_key, aws_session_token):
@@ -40,16 +41,24 @@ def create_s3_client(aws_access_key, aws_secret_key, aws_session_token):
 
 def is_bucket_public(bucket_acl):
     """
-    Determine if the S3 bucket is publicly accessible.
+    Check if the S3 bucket is publicly accessible based on its ACL.
 
     Parameters:
-        bucket_acl (dict): ACL configuration of the S3 bucket
+        s3_client (boto3.client): Authenticated S3 client
+        bucket_name (str): Name of the S3 bucket
 
     Returns:
         bool: True if the bucket is public, False otherwise
     """
-    return any('AllUsers' in grant.get('Grantee', {}).get('URI', '')
-               for grant in bucket_acl.get('Grants', []))
+    try:
+        for grant in bucket_acl['Grants']:
+            grantee = grant['Grantee']
+            # Check if grantee is public
+            if grantee['Type'] == 'Group' and 'AllUsers' in grantee.get('URI', ''):
+                return True  # Bucket is public if any grant is to AllUsers
+        return False  # Bucket is not public
+    except ClientError as e:
+        return False  # In case of error, assume bucket is not public for safety
 
 def is_policy_public(bucket_policy):
     """
@@ -134,7 +143,7 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
                 continue
             for obj in page['Contents']:
                 object_count += 1
-                if object_count > threshold:
+                if object_count > threshold > -1: # We can use -1 to not set a limit.
                     return total_objects, public_objects, True
                 object_acl = s3_client.get_object_acl(Bucket=bucket_name, Key=obj['Key'])
                 if is_bucket_public(object_acl):
@@ -142,7 +151,7 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
         return total_objects, public_objects, False
     except ClientError as e:
         print(f"Error listing objects in bucket {bucket_name}: {e}")
-        return [], False
+        return 'Unknown', [], False
 
 def scan_buckets(s3_client, object_threshold):
     """
@@ -168,7 +177,8 @@ def scan_buckets(s3_client, object_threshold):
 
             bucket_info = {
                 'total_objects': total_objects,
-                'objects_scanned': MAX_OBJECTS,
+                'max_objects_scanned': MAX_OBJECTS,
+                'total_public_objects': len(public_objects),
                 'public_objects': public_objects,
                 'public_via_acl': is_public_acl,
                 'public_via_policy': is_public_policy
