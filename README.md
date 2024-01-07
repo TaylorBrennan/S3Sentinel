@@ -95,3 +95,12 @@ If you find `S3Sentinel` helpful, consider supporting my work! Whether it's a cu
 
 Click the image above to buy me a coffee. Thank you for your support! 🙏
 
+
+
+
+
+### Legal Notice
+
+Disclaimer: S3Sentinel ("the tool") is provided as-is without any guarantees or warranty. While the tool is developed with a focus on safety and accuracy, users are advised to use it at their own risk.
+The author of the tool, is not responsible for any direct, indirect, incidental, consequential, or any other damages arising out of the use of the tool, including data loss or corruption, or any consequences incurred by relying on the tool’s output.
+Users are encouraged to independently verify the tool's findings for accuracy and completeness. The tool is not intended to replace professional advice or custom security solutions tailored to specific circumstances.
