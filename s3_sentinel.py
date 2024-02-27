@@ -15,31 +15,12 @@ Usage:
 import json
 import sys
 import boto3
+import argparse
 from botocore.exceptions import ClientError
 
 # Maximum number of objects to scan per bucket.
 #   -1 = No limit, but may take significantly longer.
 MAX_OBJECTS = 400
-
-
-def create_s3_client(aws_access_key, aws_secret_key, aws_session_token):
-    """
-    Create an authenticated S3 client using the provided AWS credentials.
-
-    Parameters:
-        aws_access_key (str): AWS Access Key ID
-        aws_secret_key (str): AWS Secret Access Key
-        aws_session_token (str): AWS Session Token, optional
-
-    Returns:
-        boto3.client: Authenticated S3 client
-    """
-    return boto3.client(
-        's3',
-        aws_access_key_id=aws_access_key,
-        aws_secret_access_key=aws_secret_key,
-        aws_session_token=aws_session_token
-    )
 
 
 def get_bucket_status(s3_client, bucket_name):
@@ -275,20 +256,65 @@ def scan_buckets(s3_client, object_threshold):
         print(f"Error scanning buckets: {e}")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-p",
+        "--profile",
+        type=str,
+        help="The AWS profile name to use",
+        required=False
+    )
+    parser.add_argument(
+        "-a",
+        "--access-key-id",
+        type=str,
+        help="The AWS Access Key ID to use",
+        required=False
+    )
+    parser.add_argument(
+        "-s",
+        "--secret-access-key",
+        type=str,
+        help="The AWS Secret Access Key to use",
+        required=False
+    )
+    parser.add_argument(
+        "-t",
+        "--session-token",
+        type=str,
+        help="The AWS Session Token to use",
+        required=False
+    )
+
+    args = parser.parse_args()
+
+    return args
+
+
+
 def main():
     """
     Main function to execute the script logic.
     """
-    if len(sys.argv) < 3:
-        print("Usage: python s3_sentinel.py <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> [<AWS_SESSION_TOKEN>]")
+    args = parse_args()
+    if args.access_key_id and (args.secret_access_key is None):
+        print('--secret-access-key is required when --access-key-id is used')
         sys.exit(1)
-    try:
-        s3_client = create_s3_client(sys.argv[1],
-                                     sys.argv[2],
-                                     sys.argv[3] if len(sys.argv) > 3 else None)
-    except ClientError as e:
-        print(f"Failed to authenticate with provided AWS Credentials: {e}")
-        sys.exit(1)
+    if args.access_key_id:
+        try:
+            s3_client = boto3.client(
+                            's3',
+                            aws_access_key_id=args.access_key_id,
+                            aws_secret_access_key=args.secret_access_key,
+                            aws_session_token=args.session_token
+                        )
+        except ClientError as e:
+            print(f"Failed to authenticate with provided AWS Credentials: {e}")
+            sys.exit(1)
+    else:
+        session = boto3.Session(profile_name=args.profile)
+        s3_client = session.client("s3")
     scan_buckets(s3_client, MAX_OBJECTS)
 
 
