@@ -298,6 +298,7 @@ def main():
     Main function to execute the script logic.
     """
     args = parse_args()
+    s3_client = None
     if args.access_key_id and (args.secret_access_key is None):
         print('--secret-access-key is required when --access-key-id is used')
         sys.exit(1)
@@ -312,9 +313,12 @@ def main():
         except ClientError as e:
             print(f"Failed to authenticate with provided AWS Credentials: {e}")
             sys.exit(1)
-    else:
+    elif args.profile:
         session = boto3.Session(profile_name=args.profile)
         s3_client = session.client("s3")
+    else:
+        print("No parameters defined")
+        sys.exit(1)
     scan_buckets(s3_client, MAX_OBJECTS)
 
 
