@@ -220,14 +220,13 @@ def scan_buckets(s3_client, object_threshold):
             except ClientError:
                 access_block_set = "Unknown"
             bucket_status = get_bucket_status(s3_client, bucket_name)
-
+            versioning_enabled = s3_client.get_bucket_versioning(Bucket=bucket_name).get("Status") or "Disabled"
             is_public_acl = is_acl_public(acl) if acl else False
             is_public_policy = is_policy_public(policy) if policy else False
             total_objects, public_objects, exceeded_threshold = list_bucket_objects(s3_client,
                                                                                     bucket_name,
                                                                                     object_threshold)
-
-            bucket_info = {
+            results[bucket_name] = {
                 'bucket_status': bucket_status,
                 'total_objects': total_objects,
                 'max_objects_scanned': MAX_OBJECTS,
@@ -235,16 +234,16 @@ def scan_buckets(s3_client, object_threshold):
                 'public_objects': public_objects,
                 'public_via_acl': is_public_acl,
                 'public_via_policy': is_public_policy,
+                'versioning': versioning_enabled,
                 'access_block': access_block_set
             }
-            results[bucket_name] = bucket_info
-
             print(
                 f"[{index + 1} / {len(buckets)}] Bucket: {bucket_name}\n"
                 f"\t- Bucket Status: {bucket_status}\n"
                 f"\t- Public via ACL: {is_public_acl}\n"
                 f"\t- Public via Policy: {is_public_policy}\n"
                 f"\t- Access Block Set: {access_block_set}\n"
+                f"\t- Versioning: {versioning_enabled}\n"
                 f"\t- Exceeded Object Threshold: {exceeded_threshold} ({total_objects}/{MAX_OBJECTS})\n"
                 f"\t- Public Objects: {len(public_objects)}")
             for obj in public_objects:
