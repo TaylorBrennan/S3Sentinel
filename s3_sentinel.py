@@ -313,8 +313,12 @@ def main():
             print(f"Failed to authenticate with provided AWS Credentials: {e}")
             sys.exit(1)
     elif args.profile:
-        session = boto3.Session(profile_name=args.profile)
-        s3_client = session.client("s3")
+        try:
+            session = boto3.Session(profile_name=args.profile)
+            s3_client = session.client("s3")
+        except ClientError as e:
+            print(f"Failed to authenticate with provided AWS Credentials: {e}")
+            sys.exit(1)
     else:
         print("python s3_bucket_scanner.py [-p <AWS_PROFILE> ] [-a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>]]")
         sys.exit(1)
