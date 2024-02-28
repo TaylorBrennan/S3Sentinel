@@ -7,7 +7,7 @@ This script scans all S3 buckets in an AWS account and outputs the results in a 
 The JSON file is named `buckets.json`.
 
 Usage:
-    python s3_bucket_scanner.py <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> [<AWS_SESSION_TOKEN>]
+    python s3_bucket_scanner.py [-p <AWS_PROFILE> ] [-a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>]]
 """
 # Ignoring Line too Long / Local Variable Count
 # pylint: disable=C0301,R0914
@@ -15,31 +15,12 @@ Usage:
 import json
 import sys
 import boto3
+import argparse
 from botocore.exceptions import ClientError
 
 # Maximum number of objects to scan per bucket.
 #   -1 = No limit, but may take significantly longer.
 MAX_OBJECTS = 400
-
-
-def create_s3_client(aws_access_key, aws_secret_key, aws_session_token):
-    """
-    Create an authenticated S3 client using the provided AWS credentials.
-
-    Parameters:
-        aws_access_key (str): AWS Access Key ID
-        aws_secret_key (str): AWS Secret Access Key
-        aws_session_token (str): AWS Session Token, optional
-
-    Returns:
-        boto3.client: Authenticated S3 client
-    """
-    return boto3.client(
-        's3',
-        aws_access_key_id=aws_access_key,
-        aws_secret_access_key=aws_secret_key,
-        aws_session_token=aws_session_token
-    )
 
 
 def get_bucket_status(s3_client, bucket_name):
@@ -239,14 +220,13 @@ def scan_buckets(s3_client, object_threshold):
             except ClientError:
                 access_block_set = "Unknown"
             bucket_status = get_bucket_status(s3_client, bucket_name)
-
+            versioning_enabled = s3_client.get_bucket_versioning(Bucket=bucket_name).get("Status") or "Disabled"
             is_public_acl = is_acl_public(acl) if acl else False
             is_public_policy = is_policy_public(policy) if policy else False
             total_objects, public_objects, exceeded_threshold = list_bucket_objects(s3_client,
                                                                                     bucket_name,
                                                                                     object_threshold)
-
-            bucket_info = {
+            results[bucket_name] = {
                 'bucket_status': bucket_status,
                 'total_objects': total_objects,
                 'max_objects_scanned': MAX_OBJECTS,
@@ -254,16 +234,16 @@ def scan_buckets(s3_client, object_threshold):
                 'public_objects': public_objects,
                 'public_via_acl': is_public_acl,
                 'public_via_policy': is_public_policy,
+                'versioning': versioning_enabled,
                 'access_block': access_block_set
             }
-            results[bucket_name] = bucket_info
-
             print(
                 f"[{index + 1} / {len(buckets)}] Bucket: {bucket_name}\n"
                 f"\t- Bucket Status: {bucket_status}\n"
                 f"\t- Public via ACL: {is_public_acl}\n"
                 f"\t- Public via Policy: {is_public_policy}\n"
                 f"\t- Access Block Set: {access_block_set}\n"
+                f"\t- Versioning: {versioning_enabled}\n"
                 f"\t- Exceeded Object Threshold: {exceeded_threshold} ({total_objects}/{MAX_OBJECTS})\n"
                 f"\t- Public Objects: {len(public_objects)}")
             for obj in public_objects:
@@ -275,19 +255,68 @@ def scan_buckets(s3_client, object_threshold):
         print(f"Error scanning buckets: {e}")
 
 
+def parse_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "-p",
+        "--profile",
+        type=str,
+        help="The AWS profile name to use",
+        required=False
+    )
+    parser.add_argument(
+        "-a",
+        "--access-key-id",
+        type=str,
+        help="The AWS Access Key ID to use",
+        required=False
+    )
+    parser.add_argument(
+        "-s",
+        "--secret-access-key",
+        type=str,
+        help="The AWS Secret Access Key to use",
+        required=False
+    )
+    parser.add_argument(
+        "-t",
+        "--session-token",
+        type=str,
+        help="The AWS Session Token to use",
+        required=False
+    )
+
+    args = parser.parse_args()
+
+    return args
+
+
+
 def main():
     """
     Main function to execute the script logic.
     """
-    if len(sys.argv) < 3:
-        print("Usage: python s3_sentinel.py <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> [<AWS_SESSION_TOKEN>]")
+    args = parse_args()
+    s3_client = None
+    if args.access_key_id and (args.secret_access_key is None):
+        print('-s/--secret-access-key is required when -a/--access-key-id is used')
         sys.exit(1)
-    try:
-        s3_client = create_s3_client(sys.argv[1],
-                                     sys.argv[2],
-                                     sys.argv[3] if len(sys.argv) > 3 else None)
-    except ClientError as e:
-        print(f"Failed to authenticate with provided AWS Credentials: {e}")
+    if args.access_key_id:
+        try:
+            s3_client = boto3.client(
+                            's3',
+                            aws_access_key_id=args.access_key_id,
+                            aws_secret_access_key=args.secret_access_key,
+                            aws_session_token=args.session_token
+                        )
+        except ClientError as e:
+            print(f"Failed to authenticate with provided AWS Credentials: {e}")
+            sys.exit(1)
+    elif args.profile:
+        session = boto3.Session(profile_name=args.profile)
+        s3_client = session.client("s3")
+    else:
+        print("python s3_bucket_scanner.py [-p <AWS_PROFILE> ] [-a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>]]")
         sys.exit(1)
     scan_buckets(s3_client, MAX_OBJECTS)
 
