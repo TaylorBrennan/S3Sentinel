@@ -16,12 +16,20 @@ import json
 import sys
 import boto3
 import argparse
+import logging
 from botocore.exceptions import ClientError
 
 # Maximum number of objects to scan per bucket.
 #   -1 = No limit, but may take significantly longer.
 MAX_OBJECTS = 400
 
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.DEBUG)
+formatter = logging.Formatter('%(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 def get_bucket_status(s3_client, bucket_name):
     """
@@ -120,7 +128,7 @@ def get_bucket_acl(s3_client, bucket_name):
     try:
         return s3_client.get_bucket_acl(Bucket=bucket_name)
     except ClientError as e:
-        print(f"Error getting policy for bucket {bucket_name}: {e}")
+        logger.error(f"Error getting policy for bucket {bucket_name}: {e}")
         return None
 
 
@@ -141,7 +149,7 @@ def get_bucket_policy(s3_client, bucket_name):
         # The bucket doesn't have a policy, no err needed, just return None.
         return None
     except ClientError as e:
-        print(f"Error getting policy for bucket {bucket_name}: {e}")
+        logger.error(f"Error getting policy for bucket {bucket_name}: {e}")
         return None
 
 
@@ -183,7 +191,7 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
                     public_objects.append(obj['Key'])
         return total_objects, public_objects, False
     except ClientError as e:
-        print(f"Error listing objects in bucket {bucket_name}: {e}")
+        logger.error(f"Error listing objects in bucket {bucket_name}: {e}")
         return 'Unknown', [], False
 
 
@@ -209,7 +217,7 @@ def scan_buckets(s3_client, object_threshold):
     results = {}
     try:
         buckets = s3_client.list_buckets()['Buckets']
-        print(f"[!] There are {len(buckets)} buckets in this account.")
+        logger.info(f"There are {len(buckets)} buckets in this account.")
         for index, bucket in enumerate(buckets):
             bucket_name = bucket['Name']
             acl = get_bucket_acl(s3_client, bucket_name)
@@ -220,7 +228,7 @@ def scan_buckets(s3_client, object_threshold):
             except ClientError:
                 access_block_set = "Unknown"
             bucket_status = get_bucket_status(s3_client, bucket_name)
-            versioning_enabled = s3_client.get_bucket_versioning(Bucket=bucket_name).get("Status") or "Disabled"
+            versioning_enabled = s3_client.get_bucket_versioning(Bucket=bucket_name).get("Status") or "Never Enabled"
             is_public_acl = is_acl_public(acl) if acl else False
             is_public_policy = is_policy_public(policy) if policy else False
             total_objects, public_objects, exceeded_threshold = list_bucket_objects(s3_client,
@@ -291,37 +299,35 @@ def parse_args():
     return args
 
 
+def authenticate(args):
+    try:
+        if args.access_key_id:
+            return boto3.client(
+                's3',
+                aws_access_key_id=args.access_key_id,
+                aws_secret_access_key=args.secret_access_key,
+                aws_session_token=args.session_token
+            )
+        elif args.profile:
+            session = boto3.Session(profile_name=args.profile)
+            return session.client("s3")
+        else:
+            logger.error("Invalid usage. See script usage for details.")
+            sys.exit(1)
+    except Exception as e:
+        logger.error(f"Authentication error: {e}")
+        sys.exit(1)
+
 
 def main():
-    """
-    Main function to execute the script logic.
-    """
     args = parse_args()
-    s3_client = None
-    if args.access_key_id and (args.secret_access_key is None):
-        print('-s/--secret-access-key is required when -a/--access-key-id is used')
+
+    try:
+        s3_client = authenticate(args)
+    except ClientError as e:
+        logger.error(f"Failed to authenticate with provided AWS Credentials: {e}")
         sys.exit(1)
-    if args.access_key_id:
-        try:
-            s3_client = boto3.client(
-                            's3',
-                            aws_access_key_id=args.access_key_id,
-                            aws_secret_access_key=args.secret_access_key,
-                            aws_session_token=args.session_token
-                        )
-        except ClientError as e:
-            print(f"Failed to authenticate with provided AWS Credentials: {e}")
-            sys.exit(1)
-    elif args.profile:
-        try:
-            session = boto3.Session(profile_name=args.profile)
-            s3_client = session.client("s3")
-        except ClientError as e:
-            print(f"Failed to authenticate with provided AWS Credentials: {e}")
-            sys.exit(1)
-    else:
-        print("python s3_bucket_scanner.py [-p <AWS_PROFILE> ] [-a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>]]")
-        sys.exit(1)
+
     scan_buckets(s3_client, MAX_OBJECTS)
 
 
