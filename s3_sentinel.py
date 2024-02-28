@@ -7,7 +7,7 @@ This script scans all S3 buckets in an AWS account and outputs the results in a 
 The JSON file is named `buckets.json`.
 
 Usage:
-    python s3_bucket_scanner.py <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> [<AWS_SESSION_TOKEN>]
+    python s3_bucket_scanner.py [-p <AWS_PROFILE> ] [-a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>]]
 """
 # Ignoring Line too Long / Local Variable Count
 # pylint: disable=C0301,R0914
@@ -299,7 +299,7 @@ def main():
     args = parse_args()
     s3_client = None
     if args.access_key_id and (args.secret_access_key is None):
-        print('--secret-access-key is required when --access-key-id is used')
+        print('-s/--secret-access-key is required when -a/--access-key-id is used')
         sys.exit(1)
     if args.access_key_id:
         try:
@@ -316,7 +316,7 @@ def main():
         session = boto3.Session(profile_name=args.profile)
         s3_client = session.client("s3")
     else:
-        print("No parameters defined")
+        print("python s3_bucket_scanner.py [-p <AWS_PROFILE> ] [-a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>]]")
         sys.exit(1)
     scan_buckets(s3_client, MAX_OBJECTS)
 
