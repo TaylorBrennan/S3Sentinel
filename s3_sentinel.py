@@ -276,7 +276,9 @@ def scan_buckets(s3_client, max_objects):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser()
+    parser = argparse.ArgumentParser(
+        description="Script for scanning AWS S3 buckets for public access"
+    )
     parser.add_argument(
         "-p",
         "--profile",
