@@ -20,9 +20,6 @@ import argparse
 import logging
 from botocore.exceptions import ClientError, NoCredentialsError
 
-# Maximum number of objects to scan per bucket.
-#   -1 = No limit, but may take significantly longer.
-MAX_OBJECTS = 400
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
@@ -205,7 +202,7 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
         return "Unknown", [], False
 
 
-def scan_buckets(s3_client, object_threshold):
+def scan_buckets(s3_client, max_objects):
     """
     Scan all buckets in the AWS account and assess their public access status.
 
@@ -216,7 +213,7 @@ def scan_buckets(s3_client, object_threshold):
 
     Parameters:
         s3_client (boto3.client): An authenticated S3 client used to access bucket details.
-        object_threshold (int): The maximum number of objects to scan in each bucket for public accessibility.
+        max_objects (int): The maximum number of objects to scan in each bucket for public accessibility.
                                 If set to -1, there is no limit on the number of objects scanned.
 
     Outputs:
@@ -247,12 +244,12 @@ def scan_buckets(s3_client, object_threshold):
             is_public_acl = is_acl_public(acl) if acl else False
             is_public_policy = is_policy_public(policy) if policy else False
             total_objects, public_objects, exceeded_threshold = list_bucket_objects(
-                s3_client, bucket_name, object_threshold
+                s3_client, bucket_name, max_objects
             )
             results[bucket_name] = {
                 "bucket_status": bucket_status,
                 "total_objects": total_objects,
-                "max_objects_scanned": MAX_OBJECTS,
+                "max_objects_scanned": max_objects,
                 "total_public_objects": len(public_objects),
                 "public_objects": public_objects,
                 "public_via_acl": is_public_acl,
@@ -267,7 +264,7 @@ def scan_buckets(s3_client, object_threshold):
                 f"\t- Public via Policy: {is_public_policy}\n"
                 f"\t- Access Block Set: {access_block_set}\n"
                 f"\t- Versioning: {versioning_enabled}\n"
-                f"\t- Exceeded Object Threshold: {exceeded_threshold} ({total_objects}/{MAX_OBJECTS})\n"
+                f"\t- Exceeded Object Threshold: {exceeded_threshold} ({total_objects}/{max_objects})\n"
                 f"\t- Public Objects: {len(public_objects)}"
             )
             for obj in public_objects:
@@ -310,6 +307,14 @@ def parse_args():
         help="The AWS Session Token to use",
         required=False,
     )
+    parser.add_argument(
+        "-m",
+        "--max-objects",
+        type=int,
+        help="Maximum number of objects to scan per bucket. Enter -1 for infinite",
+        required=False,
+        default=400,
+    )
 
     args = parser.parse_args()
 
@@ -340,7 +345,7 @@ def main():
     try:
         args = parse_args()
         s3_client = authenticate(args)
-        scan_buckets(s3_client, MAX_OBJECTS)
+        scan_buckets(s3_client, args.max_objects)
     except ClientError as e:
         logger.error(f"Failed to authenticate with provided AWS Credentials: {e}")
         sys.exit(1)
