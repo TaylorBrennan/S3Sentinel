@@ -315,6 +315,14 @@ def parse_args():
         required=False,
         default=400,
     )
+    parser.add_argument(
+        "-r",
+        "--region",
+        type=str,
+        help="AWS Region to use",
+        required=False,
+        default="eu-west-2",
+    )
 
     args = parser.parse_args()
 
@@ -328,9 +336,10 @@ def authenticate(args):
                 aws_access_key_id=args.access_key_id,
                 aws_secret_access_key=args.secret_access_key,
                 aws_session_token=args.session_token,
+                region_name=args.region,
             )
         elif args.profile:
-            session = boto3.Session(profile_name=args.profile)
+            session = boto3.Session(profile_name=args.profile, region_name=args.region)
         return session.client("s3")
     except Exception as e:
         logger.error(f"Authentication error: {e}")
