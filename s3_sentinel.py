@@ -212,7 +212,7 @@ def scan_buckets(s3_client, max_objects):
     up to the specified threshold.
 
     Parameters:
-        s3_client (boto3.client): An authenticated S3 client used to access bucket details.
+        s3_client (boto3.session.client): An authenticated S3 client used to access bucket details.
         max_objects (int): The maximum number of objects to scan in each bucket for public accessibility.
                                 If set to -1, there is no limit on the number of objects scanned.
 
