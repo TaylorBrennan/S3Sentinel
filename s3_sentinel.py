@@ -62,7 +62,7 @@ def get_bucket_status(s3_client, bucket_name):
         if policy_public or acl_public:
             return "Objects can be public"
         return "Bucket and objects not public"
-    except ClientError:
+    except:
         return "Unknown"
 
 
@@ -86,7 +86,7 @@ def is_acl_public(bucket_acl):
             if grantee["Type"] == "Group" and "AllUsers" in grantee.get("URI", ""):
                 return True  # ACL is public if any grant is to AllUsers
         return False  # ACL is not public
-    except ClientError:
+    except:
         return False  # In case of error, assume ACL is not public for safety
 
 
@@ -130,7 +130,7 @@ def get_bucket_acl(s3_client, bucket_name):
     """
     try:
         return s3_client.get_bucket_acl(Bucket=bucket_name)
-    except ClientError as e:
+    except Exception as e:
         logger.error(f"Error getting policy for bucket {bucket_name}: {e}")
         return None
 
@@ -151,7 +151,7 @@ def get_bucket_policy(s3_client, bucket_name):
     except s3_client.exceptions.from_code("NoSuchBucketPolicy"):
         # The bucket doesn't have a policy, no err needed, just return None.
         return None
-    except ClientError as e:
+    except Exception as e:
         logger.error(f"Error getting policy for bucket {bucket_name}: {e}")
         return None
 
@@ -197,7 +197,7 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
                 if is_acl_public(object_acl):
                     public_objects.append(obj["Key"])
         return total_objects, public_objects, False
-    except ClientError as e:
+    except Exception as e:
         logger.error(f"Error listing objects in bucket {bucket_name}: {e}")
         return "Unknown", [], False
 
@@ -234,7 +234,7 @@ def scan_buckets(s3_client, max_objects):
                     Bucket=bucket_name
                 )
                 access_block_set = public_access_block.get("BlockPublicAcls", False)
-            except ClientError:
+            except Exception:
                 access_block_set = "Unknown"
             bucket_status = get_bucket_status(s3_client, bucket_name)
             versioning_enabled = (
@@ -272,7 +272,7 @@ def scan_buckets(s3_client, max_objects):
 
         with open("buckets.json", "w", encoding="UTF-8") as file:
             json.dump(results, file, indent=4)
-    except ClientError as e:
+    except Exception as e:
         logger.error(f"Error scanning buckets: {e}")
 
 
@@ -324,18 +324,14 @@ def parse_args():
 def authenticate(args):
     try:
         if args.access_key_id:
-            return boto3.client(
-                "s3",
+            session = boto3.Session(
                 aws_access_key_id=args.access_key_id,
                 aws_secret_access_key=args.secret_access_key,
                 aws_session_token=args.session_token,
             )
         elif args.profile:
             session = boto3.Session(profile_name=args.profile)
-            return session.client("s3")
-        else:
-            logger.error("Invalid usage. See script usage for details.")
-            sys.exit(1)
+        return session.client("s3")
     except Exception as e:
         logger.error(f"Authentication error: {e}")
         sys.exit(1)
