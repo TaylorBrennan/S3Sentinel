@@ -18,7 +18,7 @@ import sys
 import boto3
 import argparse
 import logging
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, NoCredentialsError
 
 # Maximum number of objects to scan per bucket.
 #   -1 = No limit, but may take significantly longer.
@@ -282,7 +282,12 @@ def scan_buckets(s3_client, object_threshold):
 def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
-        "-p", "--profile", type=str, help="The AWS profile name to use", required=False
+        "-p",
+        "--profile",
+        type=str,
+        help="The AWS profile name to use",
+        required=False,
+        default="default",
     )
     parser.add_argument(
         "-a",
@@ -332,15 +337,19 @@ def authenticate(args):
 
 
 def main():
-    args = parse_args()
-
     try:
+        args = parse_args()
         s3_client = authenticate(args)
+        scan_buckets(s3_client, MAX_OBJECTS)
     except ClientError as e:
         logger.error(f"Failed to authenticate with provided AWS Credentials: {e}")
         sys.exit(1)
-
-    scan_buckets(s3_client, MAX_OBJECTS)
+    except NoCredentialsError as e:
+        logger.error("No Credentials Found")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(e)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
