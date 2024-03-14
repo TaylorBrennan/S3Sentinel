@@ -346,10 +346,9 @@ def main():
         args = parse_args()
         s3_client = authenticate(args)
         scan_buckets(s3_client, args.max_objects)
+        logger.info('Please see file "buckets.json" to view the details of the scan')
     except Exception as e:
         logger.error(e)
-    finally:
-        logger.info('Please see file "buckets.json" to view the details of the scan')
 
 
 if __name__ == "__main__":
