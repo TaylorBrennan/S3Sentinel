@@ -47,7 +47,7 @@ def get_bucket_status(s3_client, bucket_name):
              "Objects can be public", "Bucket and objects not public", or "Unknown" (an error has occurred).
     """
     try:
-        policy = s3_client.get_bucket_policy(Bucket=bucket_name)["Policy"]
+        policy = s3_client.get_bucket_policy(Bucket=bucket_name).get("Policy")
         acl = s3_client.get_bucket_acl(Bucket=bucket_name)
         public_access_block = s3_client.get_public_access_block(Bucket=bucket_name)[
             "PublicAccessBlockConfiguration"
@@ -77,17 +77,17 @@ def is_acl_public(bucket_acl):
         bucket_acl (dict): The Access Control List configuration of the bucket.
 
     Returns:
-        bool: True if the ACL allows public access, False otherwise.
+        bool: True if the ACL allows public access or errors, False otherwise.
     """
     try:
-        for grant in bucket_acl["Grants"]:
-            grantee = grant["Grantee"]
+        for grant in bucket_acl.get("Grants"):
+            grantee = grant.get("Grantee")
             # Check if grantee is public
-            if grantee["Type"] == "Group" and "AllUsers" in grantee.get("URI", ""):
+            if grantee.get("Type") == "Group" and "AllUsers" in grantee.get("URI", ""):
                 return True  # ACL is public if any grant is to AllUsers
         return False  # ACL is not public
     except:
-        return False  # In case of error, assume ACL is not public for safety
+        return True  # In case of error, assume ACL is public for safety
 
 
 def is_policy_public(bucket_policy):
@@ -147,7 +147,7 @@ def get_bucket_policy(s3_client, bucket_name):
         str: Policy of the bucket as a JSON string, or None if an error occurs or no policy is set
     """
     try:
-        return s3_client.get_bucket_policy(Bucket=bucket_name)["Policy"]
+        return s3_client.get_bucket_policy(Bucket=bucket_name).get("Policy")
     except s3_client.exceptions.from_code("NoSuchBucketPolicy"):
         # The bucket doesn't have a policy, no err needed, just return None.
         return None
@@ -192,10 +192,10 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
                 if object_count > threshold > -1:  # We can use -1 to not set a limit.
                     return total_objects, public_objects, True
                 object_acl = s3_client.get_object_acl(
-                    Bucket=bucket_name, Key=obj["Key"]
+                    Bucket=bucket_name, Key=obj.get("Key")
                 )
                 if is_acl_public(object_acl):
-                    public_objects.append(obj["Key"])
+                    public_objects.append(obj.get("Key"))
         return total_objects, public_objects, False
     except Exception as e:
         logger.error(f"Error listing objects in bucket {bucket_name}: {e}")
@@ -223,10 +223,10 @@ def scan_buckets(s3_client, max_objects):
     """
     results = {}
     try:
-        buckets = s3_client.list_buckets()["Buckets"]
-        logger.info(f"There are {len(buckets)} buckets in this account.")
+        buckets = s3_client.list_buckets().get("Buckets")
+        logger.info(f"There is {len(buckets)} bucket(s) in this account.")
         for index, bucket in enumerate(buckets):
-            bucket_name = bucket["Name"]
+            bucket_name = bucket.get("Name")
             acl = get_bucket_acl(s3_client, bucket_name)
             policy = get_bucket_policy(s3_client, bucket_name)
             try:
@@ -323,27 +323,21 @@ def parse_args():
         required=False,
         default="eu-west-2",
     )
-
     args = parser.parse_args()
-
     return args
 
 
 def authenticate(args):
-    try:
-        if args.access_key_id:
-            session = boto3.Session(
-                aws_access_key_id=args.access_key_id,
-                aws_secret_access_key=args.secret_access_key,
-                aws_session_token=args.session_token,
-                region_name=args.region,
-            )
-        elif args.profile:
-            session = boto3.Session(profile_name=args.profile, region_name=args.region)
-        return session.client("s3")
-    except Exception as e:
-        logger.error(f"Authentication error: {e}")
-        sys.exit(1)
+    if args.access_key_id:
+        session = boto3.Session(
+            aws_access_key_id=args.access_key_id,
+            aws_secret_access_key=args.secret_access_key,
+            aws_session_token=args.session_token,
+            region_name=args.region,
+        )
+    elif args.profile:
+        session = boto3.Session(profile_name=args.profile, region_name=args.region)
+    return session.client("s3")
 
 
 def main():
@@ -351,15 +345,10 @@ def main():
         args = parse_args()
         s3_client = authenticate(args)
         scan_buckets(s3_client, args.max_objects)
-    except ClientError as e:
-        logger.error(f"Failed to authenticate with provided AWS Credentials: {e}")
-        sys.exit(1)
-    except NoCredentialsError as e:
-        logger.error("No Credentials Found")
-        sys.exit(1)
     except Exception as e:
         logger.error(e)
-        sys.exit(1)
+    finally:
+        logger.info('Please see file "buckets.json" to view the details of the scan')
 
 
 if __name__ == "__main__":
