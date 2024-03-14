@@ -18,7 +18,6 @@ import sys
 import boto3
 import argparse
 import logging
-from botocore.exceptions import ClientError, NoCredentialsError
 
 
 logger = logging.getLogger(__name__)
