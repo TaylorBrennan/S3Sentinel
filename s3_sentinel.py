@@ -14,7 +14,6 @@ Usage:
 # pylint: disable=C0301,R0914
 
 import json
-import sys
 import boto3
 import argparse
 import logging
