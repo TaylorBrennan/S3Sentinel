@@ -19,13 +19,26 @@ import argparse
 import logging
 
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setLevel(logging.DEBUG)
-formatter = logging.Formatter("%(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
+def setup_logger(name, level=logging.INFO, format="%(levelname)s - %(message)s"):
+    """
+    Function to set up a logger with given configuration.
+
+    Args:
+        name (str): Name of the logger.
+        level (int): Logging level (default is INFO).
+        format (str): Format of log messages (default is '%(levelname)s - %(message)s').
+
+    Returns:
+        logging.Logger: Configured logger object.
+    """
+    logger = logging.getLogger(name)
+    logger.setLevel(level)
+
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter(format))
+    logger.addHandler(handler)
+
+    return logger
 
 
 def get_bucket_status(s3_client, bucket_name):
@@ -348,6 +361,9 @@ def main():
         logger.info('Please see file "buckets.json" to view the details of the scan')
     except Exception as e:
         logger.error(e)
+
+
+logger = setup_logger(__name__)
 
 
 if __name__ == "__main__":
