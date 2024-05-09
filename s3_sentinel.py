@@ -7,7 +7,7 @@ This script scans all S3 buckets in an AWS account and outputs the results in a 
 The JSON file is named `buckets.json`.
 
 Usage:
-python s3_bucket_scanner.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
+python s3_sentinel.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
 """
 
 # Ignoring Line too Long / Local Variable Count
