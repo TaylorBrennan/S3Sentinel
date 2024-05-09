@@ -36,7 +36,7 @@ S3Sentinel is your go-to tool for ensuring your AWS S3 buckets are fortified! ðŸ
 Simply run the script with your AWS Credentials:
 
 ```bash
-python s3_bucket_scanner.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
+python s3_sentinel.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
 ```
 
 _ðŸ‘‰ Don't forget to replace <AWS_PROFILE> or <AWS_ACCESS_KEY_ID>, <AWS_SECRET_ACCESS_KEY>, and <AWS_SESSION_TOKEN> with your actual AWS credentials._
