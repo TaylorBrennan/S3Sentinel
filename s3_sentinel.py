@@ -123,8 +123,9 @@ def is_policy_public(bucket_policy):
                 principal = statement.get("Principal", {})
                 if principal == "*" or "AWS" in principal:
                     return True
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.exception("Error parsing policy JSON", exc_info=e)
+        raise
     return False
 
 
