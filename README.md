@@ -30,14 +30,16 @@ S3Sentinel is your go-to tool for ensuring your AWS S3 buckets are fortified! �
    ```bash
    pip install -r requirements.txt
    ```
+
 ### Usage
 
 Simply run the script with your AWS Credentials:
 
 ```bash
-python s3_sentinel.py <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> [<AWS_SESSION_TOKEN>]
+python s3_sentinel.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
 ```
-_👉 Don't forget to replace <AWS_ACCESS_KEY_ID>, <AWS_SECRET_ACCESS_KEY>, and <AWS_SESSION_TOKEN> with your actual AWS credentials._
+
+_👉 Don't forget to replace <AWS_PROFILE> or <AWS_ACCESS_KEY_ID>, <AWS_SECRET_ACCESS_KEY>, and <AWS_SESSION_TOKEN> with your actual AWS credentials._
 
 ## Example Output 📜
 
@@ -58,18 +60,16 @@ _👉 Don't forget to replace <AWS_ACCESS_KEY_ID>, <AWS_SECRET_ACCESS_KEY>, and 
 
 ```json
 {
-    "BUCKET_NAME": {
-        "bucket_status": "Unknown",
-        "total_objects": 1,
-        "max_objects_scanned": 400,
-        "total_public_objects": 1,
-        "public_objects": [
-            "PUBLIC_OBJECT_NAME.TXT"
-        ],
-        "public_via_acl": false,
-        "public_via_policy": false,
-        "access_block": false
-    }
+  "BUCKET_NAME": {
+    "bucket_status": "Unknown",
+    "total_objects": 1,
+    "max_objects_scanned": 400,
+    "total_public_objects": 1,
+    "public_objects": ["PUBLIC_OBJECT_NAME.TXT"],
+    "public_via_acl": false,
+    "public_via_policy": false,
+    "access_block": false
+  }
 }
 ```
 
@@ -94,10 +94,6 @@ If you find `S3Sentinel` helpful, consider supporting my work! Whether it's a cu
 [![Buy Me A Coffee](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/tbrennan)
 
 Click the image above to buy me a coffee. Thank you for your support! 🙏
-
-
-
-
 
 ### Legal Notice
 
