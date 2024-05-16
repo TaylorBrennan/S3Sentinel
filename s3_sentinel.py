@@ -7,7 +7,7 @@ This script scans all S3 buckets in an AWS account and outputs the results in a 
 The JSON file is named `buckets.json`.
 
 Usage:
-python s3_bucket_scanner.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
+python s3_sentinel.py -p <AWS_PROFILE> | -a <AWS_ACCESS_KEY_ID> -s <AWS_SECRET_ACCESS_KEY> [-t <AWS_SESSION_TOKEN>] [-m <MAX_OBJECTS>]
 """
 
 # Ignoring Line too Long / Local Variable Count
@@ -123,8 +123,9 @@ def is_policy_public(bucket_policy):
                 principal = statement.get("Principal", {})
                 if principal == "*" or "AWS" in principal:
                     return True
-    except json.JSONDecodeError:
-        pass
+    except json.JSONDecodeError as e:
+        logger.exception("Error parsing policy JSON", exc_info=e)
+        raise
     return False
 
 
@@ -142,7 +143,7 @@ def get_bucket_acl(s3_client, bucket_name):
     try:
         return s3_client.get_bucket_acl(Bucket=bucket_name)
     except Exception as e:
-        logger.error(f"Error getting policy for bucket {bucket_name}: {e}")
+        logger.exception("Error getting policy for bucket", exc_info=e)
         return None
 
 
@@ -163,7 +164,7 @@ def get_bucket_policy(s3_client, bucket_name):
         # The bucket doesn't have a policy, no err needed, just return None.
         return None
     except Exception as e:
-        logger.error(f"Error getting policy for bucket {bucket_name}: {e}")
+        logger.exception("Error getting policy for bucket", exc_info=e)
         return None
 
 
@@ -209,7 +210,7 @@ def list_bucket_objects(s3_client, bucket_name, threshold):
                     public_objects.append(obj.get("Key"))
         return total_objects, public_objects, False
     except Exception as e:
-        logger.error(f"Error listing objects in bucket {bucket_name}: {e}")
+        logger.exception("Error listing objects in bucket", exc_info=e)
         return "Unknown", [], False
 
 
@@ -284,7 +285,7 @@ def scan_buckets(s3_client, max_objects):
         with open("buckets.json", "w", encoding="UTF-8") as file:
             json.dump(results, file, indent=4)
     except Exception as e:
-        logger.error(f"Error scanning buckets: {e}")
+        logger.exception(f"Error scanning buckets", exc_info=e)
 
 
 def parse_args():
@@ -360,7 +361,7 @@ def main():
         scan_buckets(s3_client, args.max_objects)
         logger.info('Please see file "buckets.json" to view the details of the scan')
     except Exception as e:
-        logger.error(e)
+        logger.exception(e, exc_info=e)
 
 
 logger = setup_logger(__name__)
